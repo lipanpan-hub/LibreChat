@@ -17,6 +17,7 @@ const { logger } = require('~/config');
  * @param {Express.Application} app
  */
 const configureSocialLogins = (app) => {
+  console.log('configureSocialLogins----');
   if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
     passport.use(googleLogin());
   }
@@ -41,6 +42,7 @@ const configureSocialLogins = (app) => {
       resave: false,
       saveUninitialized: false,
     };
+    console.log('sessionOptions', sessionOptions);
     if (isEnabled(process.env.USE_REDIS)) {
       const client = new Redis(process.env.REDIS_URI);
       client

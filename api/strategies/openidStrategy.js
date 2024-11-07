@@ -14,7 +14,6 @@ try {
 } catch (err) {
   logger.error('[openidStrategy] crypto support is disabled!', err);
 }
-
 /**
  * Downloads an image from a URL using an access token.
  * @param {string} url
@@ -55,36 +54,6 @@ const downloadImage = async (url, accessToken) => {
 };
 
 /**
- * Determines the full name of a user based on OpenID userinfo and environment configuration.
- *
- * @param {Object} userinfo - The user information object from OpenID Connect
- * @param {string} [userinfo.given_name] - The user's first name
- * @param {string} [userinfo.family_name] - The user's last name
- * @param {string} [userinfo.username] - The user's username
- * @param {string} [userinfo.email] - The user's email address
- * @returns {string} The determined full name of the user
- */
-function getFullName(userinfo) {
-  if (process.env.OPENID_NAME_CLAIM) {
-    return userinfo[process.env.OPENID_NAME_CLAIM];
-  }
-
-  if (userinfo.given_name && userinfo.family_name) {
-    return `${userinfo.given_name} ${userinfo.family_name}`;
-  }
-
-  if (userinfo.given_name) {
-    return userinfo.given_name;
-  }
-
-  if (userinfo.family_name) {
-    return userinfo.family_name;
-  }
-
-  return userinfo.username || userinfo.email;
-}
-
-/**
  * Converts an input into a string suitable for a username.
  * If the input is a string, it will be returned as is.
  * If the input is an array, elements will be joined with underscores.
@@ -113,7 +82,13 @@ async function setupOpenId() {
       });
       logger.info(`[openidStrategy] proxy agent added: ${process.env.PROXY}`);
     }
-    const issuer = await Issuer.discover(process.env.OPENID_ISSUER);
+    const issuer = await new Issuer({
+      issuer: process.env.OPENID_ISSUER,
+      authorization_endpoint: 'https://open.feishu.cn/open-apis/authen/v1/index',
+      token_endpoint: 'https://open.feishu.cn/open-apis/authen/v1/access_token',
+    });
+    logger.info(`issuer info: ${issuer}`);
+    console.log('issuer', issuer);
     const client = new issuer.Client({
       client_id: process.env.OPENID_CLIENT_ID,
       client_secret: process.env.OPENID_CLIENT_SECRET,
@@ -130,6 +105,7 @@ async function setupOpenId() {
         },
       },
       async (tokenset, userinfo, done) => {
+        logger.info(`tokenset----:${tokenset}`);
         try {
           logger.info(`[openidStrategy] verify login openidId: ${userinfo.sub}`);
           logger.debug('[openidStrategy] very login tokenset and userinfo', { tokenset, userinfo });
@@ -148,7 +124,16 @@ async function setupOpenId() {
             );
           }
 
-          const fullName = getFullName(userinfo);
+          let fullName = '';
+          if (userinfo.given_name && userinfo.family_name) {
+            fullName = userinfo.given_name + ' ' + userinfo.family_name;
+          } else if (userinfo.given_name) {
+            fullName = userinfo.given_name;
+          } else if (userinfo.family_name) {
+            fullName = userinfo.family_name;
+          } else {
+            fullName = userinfo.username || userinfo.email;
+          }
 
           if (requiredRole) {
             let decodedToken = '';
@@ -180,14 +165,9 @@ async function setupOpenId() {
             }
           }
 
-          let username = '';
-          if (process.env.OPENID_USERNAME_CLAIM) {
-            username = userinfo[process.env.OPENID_USERNAME_CLAIM];
-          } else {
-            username = convertToUsername(
-              userinfo.username || userinfo.given_name || userinfo.email,
-            );
-          }
+          const username = convertToUsername(
+            userinfo.username || userinfo.given_name || userinfo.email,
+          );
 
           if (!user) {
             user = {
@@ -253,7 +233,7 @@ async function setupOpenId() {
 
     passport.use('openid', openidLogin);
   } catch (err) {
-    logger.error('[openidStrategy]', err);
+    logger.error('[openidStrategy--]', err);
   }
 }
 

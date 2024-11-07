@@ -1,5 +1,5 @@
-function setHeaders(req, res, next) {
-  res.writeHead(200, {
+async function setHeaders(req, res, next) {
+  await res.writeHead(200, {
     Connection: 'keep-alive',
     'Content-Type': 'text/event-stream',
     'Cache-Control': 'no-cache, no-transform',

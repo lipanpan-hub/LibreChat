@@ -1,4 +1,6 @@
 const bcrypt = require('bcryptjs');
+const axios = require('axios');
+
 const { webcrypto } = require('node:crypto');
 const { SystemRoles, errorsToString } = require('librechat-data-provider');
 const {
@@ -11,7 +13,7 @@ const {
   deleteUserById,
 } = require('~/models/userMethods');
 const { createToken, findToken, deleteTokens, Session } = require('~/models');
-const { isEnabled, checkEmailConfig, sendEmail } = require('~/server/utils');
+const { sendEmail, checkEmailConfig } = require('~/server/utils');
 const { registerSchema } = require('~/strategies/validators');
 const { hashToken } = require('~/server/utils/crypto');
 const isDomainAllowed = require('./isDomainAllowed');
@@ -188,8 +190,7 @@ const registerUser = async (user, additionalData = {}) => {
     };
 
     const emailEnabled = checkEmailConfig();
-    const disableTTL = isEnabled(process.env.ALLOW_UNVERIFIED_EMAIL_LOGIN);
-    const newUser = await createUser(newUserData, disableTTL, true);
+    const newUser = await createUser(newUserData, false, true);
     newUserId = newUser._id;
     if (emailEnabled && !newUser.emailVerified) {
       await sendVerificationEmail({
@@ -345,14 +346,83 @@ const setAuthTokens = async (userId, res, sessionId = null) => {
 
     res.cookie('refreshToken', refreshToken, {
       expires: new Date(refreshTokenExpires),
-      httpOnly: true,
-      secure: isProduction,
+      httpOnly: false,
+      secure: false,
       sameSite: 'strict',
     });
 
     return token;
   } catch (error) {
     logger.error('[setAuthTokens] Error in setting authentication tokens:', error);
+    throw error;
+  }
+};
+
+// 获取飞书app_access_token
+
+const getFeishuAppAccessToken = async () => {
+  try {
+    const response  = await axios({
+      url: 'https://open.feishu.cn/open-apis/auth/v3/app_access_token/internal',
+      method: 'POST',
+      data: {
+        app_id: process.env.OPENID_CLIENT_ID,
+        app_secret: process.env.OPENID_CLIENT_SECRET,
+      },
+      headers: {
+        'Content-Type': 'application/json; charset=utf-8',
+      },
+    });
+    return response.data;
+  } catch (error) {
+    logger.error('[获取飞书app_access_token] Error in setting authentication tokens:', error);
+    throw error;
+  }
+};
+
+// 飞书获取access_token
+const getFeiShuAccessToken = async (code) => {
+  try {
+    const app_access_token_data = await getFeishuAppAccessToken();
+    // console.log('app_access_token_data', app_access_token_data);
+    console.log('Authorization', `Bearer ${app_access_token_data.app_access_token}`);
+    if (app_access_token_data.code == 0) {
+      const response  = await axios({
+        url: 'https://open.feishu.cn/open-apis/authen/v1/oidc/access_token',
+        method: 'POST',
+        data: {
+          'grant_type': 'authorization_code',
+          'code': code,
+        },
+        headers: {
+          'Authorization': `Bearer ${app_access_token_data.app_access_token}`,
+          'Content-Type': 'application/json; charset=utf-8',
+        },
+      });
+      console.log('飞书获取access_token: response', response.data);
+      return response.data;
+    } else {
+      logger.error('[获取飞书app_access_token] Error in setting authentication tokens:');
+    }
+  } catch (error) {
+    logger.error('[setAuthTokens] Error in setting authentication tokens:', error);
+    throw error;
+  }
+};
+
+// 获取飞书用户信息
+const getFeiShuUserInfo = async (assedd_token) => {
+  try {
+    const response  = await axios({
+      url: 'https://open.feishu.cn/open-apis/authen/v1/user_info',
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${assedd_token}`,
+      },
+    });
+    return response.data;
+  } catch(error) {
+    logger.error('[获取飞书用户信息] Error in setting authentication tokens:', error);
     throw error;
   }
 };
@@ -425,4 +495,6 @@ module.exports = {
   isDomainAllowed,
   requestPasswordReset,
   resendVerificationEmail,
+  getFeiShuAccessToken,
+  getFeiShuUserInfo,
 };
