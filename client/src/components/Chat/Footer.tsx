@@ -42,6 +42,7 @@ export default function Footer({ className }: { className?: string }) {
         '](https://dodjoy.com) - ' +
         localize('com_ui_latest_footer')
   ).split('|');
+  // const mainContentParts =" ";
 
   useEffect(() => {
     if (config?.analyticsGtmId != null && typeof window.google_tag_manager === 'undefined') {
