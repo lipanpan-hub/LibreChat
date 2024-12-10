@@ -420,6 +420,7 @@ const getFeiShuUserInfo = async (assedd_token) => {
         'Authorization': `Bearer ${assedd_token}`,
       },
     });
+    // console.log("[获取飞书用户信息]:", response.data);
     return response.data;
   } catch(error) {
     logger.error('[获取飞书用户信息] Error in setting authentication tokens:', error);

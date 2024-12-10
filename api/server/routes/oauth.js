@@ -45,7 +45,8 @@ const feishuOuthHandler = async (req, res) => {
           provider: 'openid',
           openidId: userInfo.data.open_id,
           username: userInfo.data.name,
-          email: userInfo.data.email,
+          // email: userInfo.data.email,
+          email: userInfo.data.enterprise_email,
           emailVerified: false,
           name: userInfo.data.name,
         };
