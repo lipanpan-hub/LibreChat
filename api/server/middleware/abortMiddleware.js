@@ -167,7 +167,7 @@ const handleAbortError = async (res, req, error, data) => {
 
   let errorText = error?.message?.includes('"type"')
     ? error.message
-    : 'An error occurred while processing your request. Please contact the Admin.';
+    : '请求上游接口报错 左上角新开对话解决问题 如果不能解决 请联系 @李攀攀';
 
   if (error?.type === ErrorTypes.INVALID_REQUEST) {
     errorText = `{"type":"${ErrorTypes.INVALID_REQUEST}"}`;
